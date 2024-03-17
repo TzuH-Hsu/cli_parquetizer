@@ -1,0 +1,64 @@
+[tool.poetry]
+name = "parquetizer"
+version = "0.1.0"
+description = "A CLI tool for converting various data formats to Parquet."
+authors = ["TzuH-Hsu <96853116+TzuH-Hsu@users.noreply.github.com>"]
+license = "GPL-3.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "~3.12"
+python-dotenv = "^1.0.1"
+minio = "^7.2.5"
+tqdm = "^4.66.2"
+pandas = "^2.2.1"
+pyarrow = "^15.0.1"
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.29.0"
+isort = "^5.13.2"
+pre-commit = "^3.6.2"
+flake8 = "^7.0.0"
+black = "^24.2.0"
+bandit = { extras = ["toml"], version = "^1.7.8" }
+ruff = "^0.3.2"
+vulture = "^2.11"
+mypy = "^1.9.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.isort]
+py_version = 312
+line_length = 88
+profile = "black"
+src_paths = ["src"]
+
+[tool.black]
+line-length = 88
+target-version = ['py312']
+
+[tool.bandit]
+targets = ["src"]
+exclude_dirs = ["tests"]
+
+[tool.ruff]
+line-length = 88
+indent-width = 4
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["ALL"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.vulture]
+paths = ["src"]
+min_confidence = 75
+sort_by_size = true
+
+[tool.mypy]
+python_version = "3.12"
+warn_unused_configs = true
