@@ -13,6 +13,7 @@ minio = "^7.2.5"
 tqdm = "^4.66.2"
 pandas = "^2.2.1"
 pyarrow = "^15.0.1"
+questionary = "^2.0.1"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.0"
@@ -50,6 +51,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["ALL"]
+ignore = ["ANN101", "ANN002", "ANN003", "D107"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
