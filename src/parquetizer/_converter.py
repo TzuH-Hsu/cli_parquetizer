@@ -27,7 +27,7 @@ def csv2parquet(buffer: BytesIO, file_name: str) -> BytesIO:
 
         # Step 2: Convert DataFrame to Parquet format
         parquet_buffer = BytesIO()
-        csv_df.to_parquet(parquet_buffer, index=False, compression="gzip")
+        csv_df.to_parquet(parquet_buffer, compression="gzip")
         convert_progress.update(1)
 
         # Step 3: Reset buffer cursor to the beginning for reading
