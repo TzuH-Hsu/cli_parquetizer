@@ -10,7 +10,7 @@ from tqdm.contrib.concurrent import thread_map
 from parquetizer._converter import csv2parquet
 from parquetizer._source_handler import MinIO, SrcHandler
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
