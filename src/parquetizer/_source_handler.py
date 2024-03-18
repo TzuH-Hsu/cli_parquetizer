@@ -89,8 +89,16 @@ class MinIO(SrcHandler):
         """
         logger.debug("Downloading %s", file)
         buffer = BytesIO()
+        try:
+            size = self.client.stat_object(self.bucket, file).size
+        except Exception:
+            logger.exception("Could not get size using stat_object")
+            logger.warning("Using get_object to get size")
+            size = int(
+                self.client.get_object(self.bucket, file).getheader("Content-Length"),
+            )
         with tqdm(
-            total=self.client.stat_object(self.bucket, file).size,
+            total=size,
             unit="B",
             unit_scale=True,
             desc=f'Downloading {file.split("/")[-1]}',
