@@ -86,7 +86,10 @@ def main() -> None:
         if not q.confirm("Do you want to continue?").ask():
             continue
 
-        n_workers = int(q.text("Enter the number of workers:").ask())
+        n_workers = q.text("Enter the number of workers:").ask()
+
+        if not n_workers:
+            q.print(f"Using default number of workers: {max(32, os.cpu_count() + 4)}")  # type: ignore[operator]
 
         if not q.confirm(
             f"Confirm to convert {len(files)} {extension} files to Parquet?",
@@ -96,7 +99,7 @@ def main() -> None:
         thread_map(
             lambda file: process_file(source_handler, file),  # noqa: B023
             files,
-            max_workers=n_workers,
+            max_workers=int(n_workers) if n_workers else None,
             colour="green",
         )
 
