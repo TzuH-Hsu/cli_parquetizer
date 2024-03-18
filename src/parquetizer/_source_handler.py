@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from io import BytesIO
 
 from minio import Minio
+from minio.error import S3Error
 from tqdm.auto import tqdm
 
 from parquetizer._utils import Progress
@@ -89,8 +90,19 @@ class MinIO(SrcHandler):
         """
         logger.debug("Downloading %s", file)
         buffer = BytesIO()
+        try:
+            size = self.client.stat_object(self.bucket, file).size
+        except S3Error as e:
+            logger.debug(e)
+            logger.warning(
+                "Could not get size using stat_object, \
+                trying get_object header 'Content-Length'",
+            )
+            size = int(
+                self.client.get_object(self.bucket, file).getheader("Content-Length"),
+            )
         with tqdm(
-            total=self.client.stat_object(self.bucket, file).size,
+            total=size,
             unit="B",
             unit_scale=True,
             desc=f'Downloading {file.split("/")[-1]}',

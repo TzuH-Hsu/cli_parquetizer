@@ -1,14 +1,16 @@
 """CLI for Parquetizer."""
 
 import logging
+import os
 
+import dotenv
 import questionary as q
 from tqdm.contrib.concurrent import thread_map
 
 from parquetizer._converter import csv2parquet
 from parquetizer._source_handler import MinIO, SrcHandler
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -48,15 +50,29 @@ def main() -> None:
         source = q.select("Select the file source:", choices=["MinIO"]).ask()
 
         if source == "MinIO":
-            minio_url = q.text("Enter MinIO URL:").ask()
-            minio_access_key = q.text("Enter MinIO Access Key:").ask()
-            minio_secret_key = q.password("Enter MinIO Secret Key:").ask()
+            if os.getenv("MINIO_URL"):
+                minio_url = os.getenv("MINIO_URL")
+                q.print(f"Using minio url from env variable: {minio_url}")
+            else:
+                minio_url = q.text("Enter MinIO URL:").ask()
+            if os.getenv("MINIO_ACCESS_KEY"):
+                minio_access_key = os.getenv("MINIO_ACCESS_KEY")
+                q.print(
+                    f"Using minio access key from env variable: {minio_access_key}",
+                )
+            else:
+                minio_access_key = q.text("Enter MinIO Access Key:").ask()
+            if os.getenv("MINIO_SECRET_KEY"):
+                minio_secret_key = os.getenv("MINIO_SECRET_KEY")
+                q.print("Using minio secret key from env variable: ********")
+            else:
+                minio_secret_key = q.password("Enter MinIO Secret Key:").ask()
             minio_secure = q.confirm("Use secure connection?").ask()
             full_path = q.text("Enter the full path of the directory:").ask()
 
             source_handler = MinIO(
                 full_path=full_path,
-                endpoint=minio_url,
+                endpoint=minio_url,  # type: ignore[arg-type]
                 access_key=minio_access_key,
                 secret_key=minio_secret_key,
                 secure=minio_secure,
@@ -70,7 +86,10 @@ def main() -> None:
         if not q.confirm("Do you want to continue?").ask():
             continue
 
-        n_workers = int(q.text("Enter the number of workers:").ask())
+        n_workers = q.text("Enter the number of workers:").ask()
+
+        if not n_workers:
+            q.print(f"Using default number of workers: {max(32, os.cpu_count() + 4)}")  # type: ignore[operator]
 
         if not q.confirm(
             f"Confirm to convert {len(files)} {extension} files to Parquet?",
@@ -80,9 +99,11 @@ def main() -> None:
         thread_map(
             lambda file: process_file(source_handler, file),  # noqa: B023
             files,
-            max_workers=n_workers,
+            max_workers=int(n_workers) if n_workers else None,
+            colour="green",
         )
 
 
 if __name__ == "__main__":
+    dotenv.load_dotenv()
     main()
