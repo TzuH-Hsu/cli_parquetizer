@@ -39,11 +39,23 @@ jobs:
             - name: Build with PyInstaller
               run: poetry run pyinstaller -y Parquetizer.spec
 
+            - name: Rename executable
+              shell: bash
+              run: |
+                  case ${{ matrix.os }} in
+                    ubuntu-latest)
+                      mv dist/Parquetizer dist/Parquetizer-linux;;
+                    windows-latest)
+                      mv dist/Parquetizer.exe dist/Parquetizer-windows.exe;;
+                    macos-latest)
+                      mv dist/Parquetizer dist/Parquetizer-macos;;
+                  esac
+
             - name: Upload artifact
               uses: actions/upload-artifact@v4
               with:
                   name: Parquetizer-${{ matrix.os }}
-                  path: dist/Parquetizer*
+                  path: dist/Parquetizer-*
                   retention-days: 7
 
     Release:
@@ -103,4 +115,4 @@ jobs:
                   body: ${{ steps.build_changelog.outputs.changelog }}
                   token: ${{ secrets.GITHUB_TOKEN }}
                   files: |
-                      dist/Parquetizer*
+                      dist/Parquetizer-*

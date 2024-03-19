@@ -38,12 +38,14 @@ class MinIO(SrcHandler):
         access_key: str | None = None,
         secret_key: str | None = None,
         secure: bool = True,
+        cert_check: bool = True,
     ) -> None:
         self.client = Minio(
             endpoint=endpoint,
             access_key=access_key,
             secret_key=secret_key,
             secure=secure,
+            cert_check=cert_check,
         )
         self.bucket, self.path = self._extract_bucket_and_path(full_path)
 
