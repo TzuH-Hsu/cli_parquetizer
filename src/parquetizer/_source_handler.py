@@ -1,6 +1,5 @@
 # ruff: noqa: PLR0913, FBT001, FBT002
 import logging
-import os
 from abc import ABC, abstractmethod
 from io import BytesIO
 from pathlib import Path
@@ -37,16 +36,15 @@ class Local(SrcHandler):
         self.path = Path(full_path)
 
     def list_filtered_objects(self, extension: str) -> list[str]:
-        """Lists all the objects in the path with the specified extension.
+        """Lists all the objects in the path and its subdirectories with the specified extension.
 
         Args:
-            path (str): The path of the directory.
             extension (str): The extension of the objects.
 
         Returns:
             list[str]: The list of object names.
-        """
-        return [file for file in os.listdir(self.path) if file.endswith(extension)]
+        """  # noqa: E501
+        return [str(file) for file in self.path.rglob(f"*{extension}")]
 
     def read(self, file: str) -> BytesIO:
         file_path = self.path / file
