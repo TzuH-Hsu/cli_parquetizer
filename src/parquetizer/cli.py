@@ -2,6 +2,7 @@
 
 import logging
 import os
+from functools import partial
 
 import dotenv
 import questionary as q
@@ -9,7 +10,7 @@ import urllib3
 from tqdm.contrib.concurrent import thread_map
 
 from parquetizer._converter import csv2parquet
-from parquetizer._source_handler import MinIO, SrcHandler
+from parquetizer._source_handler import Local, MinIO, SrcHandler
 
 urllib3.disable_warnings()
 logging.basicConfig(level=logging.INFO)
@@ -17,25 +18,25 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def process_file(source: SrcHandler, file: str) -> None:
+def process_file(
+    handler: SrcHandler,
+    file: str,
+    remove: bool = False,  # noqa: FBT001, FBT002
+) -> None:
     """Process the file by reading, converting to Parquet, writing, and removing the original file.
 
     Args:
-        source (SrcHandler): The source handler.
+        handler (SrcHandler): The source handler.
         file (str): The name of the file.
+        remove (bool, optional): Whether to remove the original file. Defaults to False.
     """  # noqa: E501
     try:
-        # Read
-        source_buffer = source.read(file)
-
-        # Convert to Parquet
+        source_buffer = handler.read(file)
         parquet_buffer = csv2parquet(source_buffer, file.split("/")[-1])
+        handler.write(file.replace(".csv", ".parquet"), parquet_buffer)
 
-        # Write
-        source.write(file.replace(".csv", ".parquet"), parquet_buffer)
-
-        # Remove original file
-        source.remove(file)
+        if remove:
+            handler.remove(file)
 
     except Exception:
         logger.exception("Error processing %s", file)
@@ -53,46 +54,51 @@ def _get_env_or_ask(
     return value
 
 
+def _configure_minio(minio_config: dict | None) -> dict:
+    if minio_config is None or not q.confirm("Use the same MinIO configuration?").ask():
+        minio_config = {
+            "endpoint": _get_env_or_ask("MINIO_URL", "Enter MinIO URL:"),
+            "access_key": _get_env_or_ask(
+                "MINIO_ACCESS_KEY",
+                "Enter MinIO Access Key:",
+            ),
+            "secret_key": _get_env_or_ask(
+                "MINIO_SECRET_KEY",
+                "Enter MinIO Secret Key:",
+                is_password=True,
+            ),
+            "secure": q.confirm("Use secure connection?").ask(),
+            "cert_check": q.confirm("Check server certificate?").ask(),
+        }
+    return minio_config
+
+
 def main() -> None:
     """Main function for the CLI."""
-    minio_config = None
+    source_handler: SrcHandler
     q.print(
         "Welcome to Parquetizer - Your CLI tool for converting various data formats to Parquet!",  # noqa: E501
     )
+    minio_config = None
     while True:
-        if q.select("Continue or Exit?", choices=["Continue", "Exit"]).ask() == "Exit":
+        action = q.select("Continue or Exit?", choices=["Continue", "Exit"]).ask()
+        if action == "Exit":
             break
 
-        source = q.select("Select the file source:", choices=["MinIO"]).ask()
+        source_type = q.select(
+            "Select the file source:",
+            choices=["Local", "MinIO"],
+        ).ask()
+        full_path = q.text("Enter the full path of the directory:").ask()
 
-        if source == "MinIO":
-            if minio_config is not None:  # noqa: SIM102
-                if not q.confirm(
-                    "Do you want to use the same MinIO configuration?",
-                ).ask():
-                    minio_config = None
+        if not full_path:
+            q.print("Please enter a valid path.")
+            continue
 
-            if minio_config is None:
-                minio_config = {
-                    "endpoint": _get_env_or_ask("MINIO_URL", "Enter MinIO URL:"),
-                    "access_key": _get_env_or_ask(
-                        "MINIO_ACCESS_KEY",
-                        "Enter MinIO Access Key:",
-                    ),
-                    "secret_key": _get_env_or_ask(
-                        "MINIO_SECRET_KEY",
-                        "Enter MinIO Secret Key:",
-                        is_password=True,
-                    ),
-                    "secure": q.confirm("Use secure connection?").ask(),
-                    "cert_check": q.confirm("Check server certificate?").ask(),
-                }
-
-            full_path = q.text("Enter the full path of the directory:").ask()
-            if not full_path:
-                q.print("Please enter a valid path.")
-                continue
-
+        if source_type == "Local":
+            source_handler = Local(full_path=full_path)
+        elif source_type == "MinIO":
+            minio_config = _configure_minio(minio_config)
             source_handler = MinIO(full_path=full_path, **minio_config)
 
         extension = q.select("Select the file format:", choices=[".csv"]).ask()
@@ -100,12 +106,24 @@ def main() -> None:
         logger.debug("Found", extra={"files": files})
         q.print(f"Found {len(files)} files with the extension {extension}.")
 
+        remove = q.confirm("Do you want to remove the original files?").ask()
+
         if not q.confirm("Do you want to continue?").ask():
             continue
 
-        n_workers = q.text("Enter the number of workers:").ask()
-        default_workers = max(32, os.cpu_count() + 4)  # type: ignore[operator]
-        max_workers = int(n_workers) if n_workers else default_workers
+        try:
+            n_workers = int(
+                q.text("Enter the number of workers (default: 10):").ask() or 10,
+            )
+            if n_workers < 1:
+                raise ValueError  # noqa: TRY301
+        except (ValueError, AssertionError):
+            logger.exception("Invalid number of workers.")
+            n_workers = 10
+        max_workers = min(
+            n_workers,
+            10,
+        )  # urllib3 default maximum of 10 ConnectionPool instances.
         q.print(f"Using number of workers: {max_workers}")
 
         if not q.confirm(
@@ -114,7 +132,7 @@ def main() -> None:
             continue
 
         thread_map(
-            lambda file: process_file(source_handler, file),  # noqa: B023
+            partial(process_file, source_handler, remove=remove),
             files,
             max_workers=max_workers,
             colour="green",

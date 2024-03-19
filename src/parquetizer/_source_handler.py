@@ -1,7 +1,9 @@
 # ruff: noqa: PLR0913, FBT001, FBT002
 import logging
+import os
 from abc import ABC, abstractmethod
 from io import BytesIO
+from pathlib import Path
 
 from minio import Minio
 from minio.error import S3Error
@@ -28,6 +30,71 @@ class SrcHandler(ABC):
     @abstractmethod
     def remove(self, object_name: str) -> None:
         pass
+
+
+class Local(SrcHandler):
+    def __init__(self, full_path: str) -> None:
+        self.path = Path(full_path)
+
+    def list_filtered_objects(self, extension: str) -> list[str]:
+        """Lists all the objects in the path with the specified extension.
+
+        Args:
+            path (str): The path of the directory.
+            extension (str): The extension of the objects.
+
+        Returns:
+            list[str]: The list of object names.
+        """
+        return [file for file in os.listdir(self.path) if file.endswith(extension)]
+
+    def read(self, file: str) -> BytesIO:
+        file_path = self.path / file
+        logger.debug("Reading %s", file)
+        buffer = BytesIO()
+
+        file_size = file_path.stat().st_size
+        with file_path.open("rb") as f:
+            for chunk in tqdm(
+                iter(lambda: f.read(4096), b""),
+                total=file_size,
+                unit="B",
+                unit_scale=True,
+                desc=f"Reading {file}",
+                colour="blue",
+                leave=False,
+            ):
+                buffer.write(chunk)
+        return buffer
+
+    def write(self, file: str, buffer: BytesIO) -> None:
+        file_path = self.path / file
+        logger.debug("Writing %s", file)
+        buffer_size = buffer.getbuffer().nbytes
+
+        with file_path.open("wb") as f:
+            for chunk in tqdm(
+                iter(lambda: buffer.read(4096), b""),
+                total=buffer_size,
+                unit="B",
+                unit_scale=True,
+                desc=f"Writing {file}",
+                colour="magenta",
+                leave=False,
+            ):
+                f.write(chunk)
+
+    def remove(self, file: str) -> None:
+        file_path = self.path / file
+        logger.debug("Removing %s", file)
+        with tqdm(
+            total=1,
+            desc=f"Deleting {file}",
+            colour="red",
+            leave=False,
+        ) as delete_progress:
+            file_path.unlink()
+            delete_progress.update(1)
 
 
 class MinIO(SrcHandler):
