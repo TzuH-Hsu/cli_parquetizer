@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "parquetizer"
-version = "0.1.0"
+version = "0.2.0"
 description = "A CLI tool for converting various data formats to Parquet."
 authors = ["TzuH-Hsu <96853116+TzuH-Hsu@users.noreply.github.com>"]
 license = "GPL-3.0"
