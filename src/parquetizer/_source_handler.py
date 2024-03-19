@@ -94,10 +94,6 @@ class MinIO(SrcHandler):
             size = self.client.stat_object(self.bucket, file).size
         except S3Error as e:
             logger.debug(e)
-            logger.warning(
-                "Could not get size using stat_object, \
-                trying get_object header 'Content-Length'",
-            )
             size = int(
                 self.client.get_object(self.bucket, file).getheader("Content-Length"),
             )
