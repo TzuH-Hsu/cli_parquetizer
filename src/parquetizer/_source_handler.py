@@ -44,7 +44,7 @@ class Local(SrcHandler):
         Returns:
             list[str]: The list of object names.
         """  # noqa: E501
-        return [str(file) for file in self.path.rglob(f"*.{extension}")]
+        return [str(file) for file in self.path.rglob(f"*{extension}")]
 
     def read(self, file: str) -> BytesIO:
         file_path = self.path / file
