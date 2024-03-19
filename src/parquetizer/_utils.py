@@ -14,5 +14,5 @@ class Progress(tqdm):
             object_name (str): The name of the object.
             total_length (int): The total length of the object.
         """
-        self.set_description_str(f"Uploading {object_name}")
+        self.set_description_str(f"Uploading {object_name.split('/')[-1]}")
         self.total = total_length
