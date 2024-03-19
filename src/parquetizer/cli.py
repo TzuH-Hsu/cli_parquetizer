@@ -5,12 +5,15 @@ import os
 
 import dotenv
 import questionary as q
+import urllib3
 from tqdm.contrib.concurrent import thread_map
 
 from parquetizer._converter import csv2parquet
 from parquetizer._source_handler import MinIO, SrcHandler
 
+urllib3.disable_warnings()
 logging.basicConfig(level=logging.INFO)
+
 logger = logging.getLogger(__name__)
 
 
@@ -50,7 +53,7 @@ def _get_env_or_ask(
     return value
 
 
-def main() -> None:  # noqa: C901
+def main() -> None:
     """Main function for the CLI."""
     minio_config = None
     q.print(
@@ -111,34 +114,9 @@ def main() -> None:  # noqa: C901
             continue
 
         thread_map(
-            process_file,
-            [(source_handler, file) for file in files],
-            max_workers=max_workers,
-            colour="green",
-        )
-
-        extension = q.select("Select the file format:", choices=[".csv"]).ask()
-        files = source_handler.list_filtered_objects(extension)
-        logger.debug("Found", extra={"files": files})
-        q.print(f"Found {len(files)} files with the extension {extension}.")
-
-        if not q.confirm("Do you want to continue?").ask():
-            continue
-
-        n_workers = q.text("Enter the number of workers:").ask()
-
-        if not n_workers:
-            q.print(f"Using default number of workers: {max(32, os.cpu_count() + 4)}")  # type: ignore[operator]
-
-        if not q.confirm(
-            f"Confirm to convert {len(files)} {extension} files to Parquet?",
-        ).ask():
-            continue
-
-        thread_map(
             lambda file: process_file(source_handler, file),  # noqa: B023
             files,
-            max_workers=int(n_workers) if n_workers else None,
+            max_workers=max_workers,
             colour="green",
         )
 
