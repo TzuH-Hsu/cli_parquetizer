@@ -97,7 +97,6 @@ jobs:
                       }
                   ignorePreReleases: ${{ !contains(github.ref, '-rc') && !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') }}
                   failOnError: true
-                  fetchReleaseInformation: true
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
