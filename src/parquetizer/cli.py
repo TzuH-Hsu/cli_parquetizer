@@ -38,45 +38,84 @@ def process_file(source: SrcHandler, file: str) -> None:
         logger.exception("Error processing %s", file)
 
 
-def main() -> None:
+def _get_env_or_ask(
+    env_var_name: str,
+    message: str,
+    is_password: bool = False,  # noqa: FBT001, FBT002
+) -> str | None:
+    value = os.getenv(env_var_name)
+    if not value:
+        prompt_function = q.password if is_password else q.text
+        value = prompt_function(message).ask()
+    return value
+
+
+def main() -> None:  # noqa: C901
     """Main function for the CLI."""
+    minio_config = None
+    q.print(
+        "Welcome to Parquetizer - Your CLI tool for converting various data formats to Parquet!",  # noqa: E501
+    )
     while True:
-        q.print(
-            "Welcome to Parquetizer \
-            - Your CLI tool for converting various data formats to Parquet!",
-        )
         if q.select("Continue or Exit?", choices=["Continue", "Exit"]).ask() == "Exit":
             break
+
         source = q.select("Select the file source:", choices=["MinIO"]).ask()
 
         if source == "MinIO":
-            if os.getenv("MINIO_URL"):
-                minio_url = os.getenv("MINIO_URL")
-                q.print(f"Using minio url from env variable: {minio_url}")
-            else:
-                minio_url = q.text("Enter MinIO URL:").ask()
-            if os.getenv("MINIO_ACCESS_KEY"):
-                minio_access_key = os.getenv("MINIO_ACCESS_KEY")
-                q.print(
-                    f"Using minio access key from env variable: {minio_access_key}",
-                )
-            else:
-                minio_access_key = q.text("Enter MinIO Access Key:").ask()
-            if os.getenv("MINIO_SECRET_KEY"):
-                minio_secret_key = os.getenv("MINIO_SECRET_KEY")
-                q.print("Using minio secret key from env variable: ********")
-            else:
-                minio_secret_key = q.password("Enter MinIO Secret Key:").ask()
-            minio_secure = q.confirm("Use secure connection?").ask()
-            full_path = q.text("Enter the full path of the directory:").ask()
+            if minio_config is not None:  # noqa: SIM102
+                if not q.confirm(
+                    "Do you want to use the same MinIO configuration?",
+                ).ask():
+                    minio_config = None
 
-            source_handler = MinIO(
-                full_path=full_path,
-                endpoint=minio_url,  # type: ignore[arg-type]
-                access_key=minio_access_key,
-                secret_key=minio_secret_key,
-                secure=minio_secure,
-            )
+            if minio_config is None:
+                minio_config = {
+                    "endpoint": _get_env_or_ask("MINIO_URL", "Enter MinIO URL:"),
+                    "access_key": _get_env_or_ask(
+                        "MINIO_ACCESS_KEY",
+                        "Enter MinIO Access Key:",
+                    ),
+                    "secret_key": _get_env_or_ask(
+                        "MINIO_SECRET_KEY",
+                        "Enter MinIO Secret Key:",
+                        is_password=True,
+                    ),
+                    "secure": q.confirm("Use secure connection?").ask(),
+                    "cert_check": q.confirm("Check server certificate?").ask(),
+                }
+
+            full_path = q.text("Enter the full path of the directory:").ask()
+            if not full_path:
+                q.print("Please enter a valid path.")
+                continue
+
+            source_handler = MinIO(full_path=full_path, **minio_config)
+
+        extension = q.select("Select the file format:", choices=[".csv"]).ask()
+        files = source_handler.list_filtered_objects(extension)
+        logger.debug("Found", extra={"files": files})
+        q.print(f"Found {len(files)} files with the extension {extension}.")
+
+        if not q.confirm("Do you want to continue?").ask():
+            continue
+
+        n_workers = q.text("Enter the number of workers:").ask()
+        default_workers = max(32, os.cpu_count() + 4)  # type: ignore[operator]
+        max_workers = int(n_workers) if n_workers else default_workers
+        q.print(f"Using number of workers: {max_workers}")
+
+        if not q.confirm(
+            f"Confirm to convert {len(files)} {extension} files to Parquet?",
+        ).ask():
+            continue
+
+        thread_map(
+            process_file,
+            [(source_handler, file) for file in files],
+            max_workers=max_workers,
+            colour="green",
+        )
 
         extension = q.select("Select the file format:", choices=[".csv"]).ask()
         files = source_handler.list_filtered_objects(extension)
