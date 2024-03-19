@@ -21,7 +21,7 @@ To get started, download the executable from the project's [releases page](https
 
 ### Windows
 
--   Locate the downloaded `Parquetizer.exe` file.
+-   Locate the downloaded `Parquetizer-windows.exe` file.
 -   Double-click the file to run the program.
 
 ### Linux
@@ -29,11 +29,11 @@ To get started, download the executable from the project's [releases page](https
 Execute the following commands in the terminal:
 
 ```bash
-chmod +x Parquetizer     # Make the file executable
-./Parquetizer            # Run the program
+chmod +x Parquetizer-linux      # Make the file executable
+./Parquetizer                   # Run the program
 ```
 
 ### MacOS
 
 -   Open Finder and go to the location where Parquetizer.app is saved.
--   Double-click on Parquetizer.app to start the application.
+-   Double-click on `Parquetizer-macos` to start the application.
