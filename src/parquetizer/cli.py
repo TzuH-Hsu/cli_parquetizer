@@ -9,7 +9,7 @@ import questionary as q
 import urllib3
 from tqdm.contrib.concurrent import thread_map
 
-from parquetizer._converter import csv2parquet
+from parquetizer._converter import csv2parquet, lvm2parquet
 from parquetizer._source_handler import Local, MinIO, SrcHandler
 
 urllib3.disable_warnings()
@@ -32,8 +32,29 @@ def process_file(
     """  # noqa: E501
     try:
         source_buffer = handler.read(file)
-        parquet_buffer = csv2parquet(source_buffer, file.split("/")[-1])
-        handler.write(file.replace(".csv", ".parquet"), parquet_buffer)
+        # Determine which converter function to use based on file extension
+        if file.lower().endswith(".csv"):
+            parquet_buffer = csv2parquet(source_buffer, file.split("/")[-1])
+            handler.write(
+                file.replace(".csv", ".parquet"),
+                parquet_buffer,
+            )
+        elif file.lower().endswith(".lvm"):
+            parquet_buffer, json_buffer = lvm2parquet(
+                source_buffer,
+                file.split("/")[-1],
+            )
+            handler.write(
+                file.replace(".lvm", ".parquet"),
+                parquet_buffer,
+            )
+            handler.write(
+                file.replace(".lvm", ".json"),
+                json_buffer,
+            )
+        else:
+            logger.error("Unsupported file type for %s", file)
+            return
 
         if remove:
             handler.remove(file)
@@ -101,7 +122,7 @@ def main() -> None:
             minio_config = _configure_minio(minio_config)
             source_handler = MinIO(full_path=full_path, **minio_config)
 
-        extension = q.select("Select the file format:", choices=[".csv"]).ask()
+        extension = q.select("Select the file format:", choices=[".csv", ".lvm"]).ask()
         files = source_handler.list_filtered_objects(extension)
         logger.debug("Found", extra={"files": files})
         q.print(f"Found {len(files)} files with the extension {extension}.")
