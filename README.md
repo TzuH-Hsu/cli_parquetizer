@@ -11,9 +11,17 @@ A CLI tool for converting various data formats to Parquet.
 
 ## Description
 
-`Parquetizer` is a Python-based command-line utility that converts different data formats into the Parquet format, leveraging libraries like `pandas`,`pyarrow`, `minio`, and `tqdm` for efficient processing. The tool supports the following data formats:
+`Parquetizer` is a Python-based command-line utility that converts different data formats into the Parquet format.
+
+#### The tool currently supports the following input formats:
 
 -   CSV
+-   LVM
+
+#### The tool currently supports the following source types:
+
+-   Local file
+-   MinIO
 
 ## Usage
 
