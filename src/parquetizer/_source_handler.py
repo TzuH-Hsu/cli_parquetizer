@@ -47,7 +47,7 @@ class Local(SrcHandler):
         return [str(file) for file in self.path.rglob(f"*{extension}")]
 
     def read(self, file: str) -> BytesIO:
-        file_path = self.path / file
+        file_path = Path(file)
         logger.debug("Reading %s", file)
         buffer = BytesIO()
 
@@ -58,7 +58,7 @@ class Local(SrcHandler):
                 total=file_size,
                 unit="B",
                 unit_scale=True,
-                desc=f"Reading {file}",
+                desc=f"Reading {file.split('/')[-1]}",
                 colour="blue",
                 leave=False,
             ):
@@ -66,7 +66,7 @@ class Local(SrcHandler):
         return buffer
 
     def write(self, file: str, buffer: BytesIO) -> None:
-        file_path = self.path / file
+        file_path = Path(file)
         logger.debug("Writing %s", file)
         buffer_size = buffer.getbuffer().nbytes
 
@@ -76,18 +76,18 @@ class Local(SrcHandler):
                 total=buffer_size,
                 unit="B",
                 unit_scale=True,
-                desc=f"Writing {file}",
+                desc=f"Writing {file.split('/')[-1]}",
                 colour="magenta",
                 leave=False,
             ):
                 f.write(chunk)
 
     def remove(self, file: str) -> None:
-        file_path = self.path / file
+        file_path = Path(file)
         logger.debug("Removing %s", file)
         with tqdm(
             total=1,
-            desc=f"Deleting {file}",
+            desc=f"Deleting {file.split('/')[-1]}",
             colour="red",
             leave=False,
         ) as delete_progress:
