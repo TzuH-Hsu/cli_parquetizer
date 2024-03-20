@@ -181,6 +181,17 @@ class MinIO(SrcHandler):
             buffer (BytesIO): The buffer containing the object.
             content_type (str): The content type of the object.
         """
+        # Dictionary mapping of file extensions to content types
+        content_types = {
+            ".parquet": "application/vnd.apache.parquet",
+            ".json": "application/json",
+        }
+
+        # Default content type if no match found
+        default_content_type = "application/octet-stream"
+
+        # Determine content type based on file extension
+        content_type = content_types.get(file.rsplit(".", 1)[-1], default_content_type)
         upload_progress = Progress(
             total=buffer.getbuffer().nbytes,
             unit="B",
@@ -193,7 +204,7 @@ class MinIO(SrcHandler):
             object_name=file,
             data=buffer,
             length=buffer.getbuffer().nbytes,
-            content_type="application/vnd.apache.parquet",
+            content_type=content_type,
             progress=upload_progress,
         )
 
