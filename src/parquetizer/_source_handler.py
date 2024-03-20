@@ -5,7 +5,6 @@ from io import BytesIO
 from pathlib import Path
 
 from minio import Minio
-from minio.error import S3Error
 from tqdm.auto import tqdm
 
 from parquetizer._utils import Progress
@@ -157,13 +156,8 @@ class MinIO(SrcHandler):
         """
         logger.debug("Downloading %s", file)
         buffer = BytesIO()
-        try:
-            size = self.client.stat_object(self.bucket, file).size
-        except S3Error as e:
-            logger.debug(e)
-            size = int(
-                self.client.get_object(self.bucket, file).getheader("Content-Length"),
-            )
+        response = self.client.get_object(self.bucket, file)
+        size = int(response.getheader("Content-Length"))
         with tqdm(
             total=size,
             unit="B",
@@ -172,9 +166,11 @@ class MinIO(SrcHandler):
             colour="blue",
             leave=False,
         ) as download_progress:
-            for data_chunk in self.client.get_object(self.bucket, file):
+            for data_chunk in response.stream(32 * 1024):
                 buffer.write(data_chunk)
                 download_progress.update(len(data_chunk))
+
+        response.release_conn()
         return buffer
 
     def write(self, file: str, buffer: BytesIO) -> None:
