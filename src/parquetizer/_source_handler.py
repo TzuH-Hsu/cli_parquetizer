@@ -183,8 +183,8 @@ class MinIO(SrcHandler):
         """
         # Dictionary mapping of file extensions to content types
         content_types = {
-            ".parquet": "application/vnd.apache.parquet",
-            ".json": "application/json",
+            "parquet": "application/vnd.apache.parquet",
+            "json": "application/json",
         }
 
         # Default content type if no match found
