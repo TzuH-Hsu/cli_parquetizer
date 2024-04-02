@@ -216,7 +216,7 @@ class MinIO(SrcHandler):
         """
         with tqdm(
             total=1,
-            desc=f"Deleting {file.split(" / ")[-1]}",
+            desc=f"Deleting {file.split('/')[-1]}",
             colour="red",
             leave=False,
         ) as delete_progress:
